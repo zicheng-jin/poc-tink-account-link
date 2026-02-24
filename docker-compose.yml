@@ -1,0 +1,55 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: ppb-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - TINK_CLIENT_ID=${TINK_CLIENT_ID}
+      - TINK_CLIENT_SECRET=${TINK_CLIENT_SECRET}
+      - TINK_API_URL=https://api.tink.com
+      - TINK_LINK_URL=https://link.tink.com
+      - MERCHANT_APP_URL=http://localhost:5173
+      - PPB_APP_URL=http://localhost:5174
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  merchant-app:
+    build:
+      context: ./frontend/merchant-app
+      args:
+        VITE_BACKEND_URL: http://localhost:3001
+        VITE_PPB_APP_URL: http://localhost:5174
+        VITE_MERCHANT_APP_URL: http://localhost:5173
+    container_name: ppb-merchant-app
+    ports:
+      - "5173:80"
+    environment:
+      - PPB_APP_URL=http://localhost:5174
+      - BACKEND_URL=http://localhost:3001
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  ppb-app:
+    build:
+      context: ./frontend/ppb-app
+      args:
+        VITE_BACKEND_URL: http://localhost:3001
+        VITE_PPB_APP_URL: http://localhost:5174
+        VITE_MERCHANT_APP_URL: http://localhost:5173
+    container_name: ppb-ppb-app
+    ports:
+      - "5174:80"
+    environment:
+      - MERCHANT_APP_URL=http://localhost:5173
+      - BACKEND_URL=http://localhost:3001
+    depends_on:
+      backend:
+        condition: service_healthy
