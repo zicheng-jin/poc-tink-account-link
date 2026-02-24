@@ -10,7 +10,9 @@ export function PayByBankButton() {
 
   function buildPpbUrl() {
     const returnUrl = encodeURIComponent(`${config.merchantAppUrl}/success`);
-    return `${config.ppbAppUrl}/?mode=${mode}&returnUrl=${returnUrl}`;
+    const isIframeMode = mode === 'iframe' || mode === 'hybrid';
+    const iframeParam = isIframeMode ? '&iframe=true' : '';
+    return `${config.ppbAppUrl}/?mode=${mode}&returnUrl=${returnUrl}${iframeParam}`;
   }
 
   function handleClick() {

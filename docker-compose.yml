@@ -4,18 +4,18 @@ services:
       context: ./backend
     container_name: ppb-backend
     ports:
-      - "3001:3001"
+      - "3002:3002"
     environment:
       - NODE_ENV=development
-      - PORT=3001
+      - PORT=3002
       - TINK_CLIENT_ID=${TINK_CLIENT_ID}
       - TINK_CLIENT_SECRET=${TINK_CLIENT_SECRET}
       - TINK_API_URL=https://api.tink.com
       - TINK_LINK_URL=https://link.tink.com
-      - MERCHANT_APP_URL=http://localhost:5173
-      - PPB_APP_URL=http://localhost:5174
+      - MERCHANT_APP_URL=http://localhost:3001
+      - PPB_APP_URL=http://localhost:3000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -24,15 +24,15 @@ services:
     build:
       context: ./frontend/merchant-app
       args:
-        VITE_BACKEND_URL: http://localhost:3001
-        VITE_PPB_APP_URL: http://localhost:5174
-        VITE_MERCHANT_APP_URL: http://localhost:5173
+        VITE_BACKEND_URL: http://localhost:3002
+        VITE_PPB_APP_URL: http://localhost:3000
+        VITE_MERCHANT_APP_URL: http://localhost:3001
     container_name: ppb-merchant-app
     ports:
-      - "5173:80"
+      - "3001:80"
     environment:
-      - PPB_APP_URL=http://localhost:5174
-      - BACKEND_URL=http://localhost:3001
+      - PPB_APP_URL=http://localhost:3000
+      - BACKEND_URL=http://localhost:3002
     depends_on:
       backend:
         condition: service_healthy
@@ -41,15 +41,15 @@ services:
     build:
       context: ./frontend/ppb-app
       args:
-        VITE_BACKEND_URL: http://localhost:3001
-        VITE_PPB_APP_URL: http://localhost:5174
-        VITE_MERCHANT_APP_URL: http://localhost:5173
+        VITE_BACKEND_URL: http://localhost:3002
+        VITE_PPB_APP_URL: http://localhost:3000
+        VITE_MERCHANT_APP_URL: http://localhost:3001
     container_name: ppb-ppb-app
     ports:
-      - "5174:80"
+      - "3000:80"
     environment:
-      - MERCHANT_APP_URL=http://localhost:5173
-      - BACKEND_URL=http://localhost:3001
+      - MERCHANT_APP_URL=http://localhost:3001
+      - BACKEND_URL=http://localhost:3002
     depends_on:
       backend:
         condition: service_healthy

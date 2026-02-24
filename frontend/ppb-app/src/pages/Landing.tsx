@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import { Building2 } from 'lucide-react';
+import { createPaymentRequest, getLinkUrl } from '@/api/tinkApi';
 import { Card } from '@/components/ui/index';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StepIndicator } from '@/components/StepIndicator';
@@ -25,47 +25,110 @@ const modeBadge: Record<PaymentMode, 'blue' | 'amber' | 'violet'> = {
 
 export function Landing() {
   const [params] = useSearchParams();
-  const { mode, status, tinkLinkUrl, setMode, setReturnUrl, setTinkLinkUrl, setStatus, setError } =
-    usePaymentStore();
+  const {
+    mode, status, tinkLinkUrl,
+    setMode, setReturnUrl, setTinkLinkUrl, setPaymentRequestId, setStatus, setError,
+  } = usePaymentStore();
 
   useEffect(() => {
     const modeParam = (params.get('mode') || 'iframe') as PaymentMode;
     const returnUrlParam = params.get('returnUrl') || config.merchantAppUrl;
+    const isIframe = params.get('iframe') === 'true';
 
     setMode(modeParam);
     setReturnUrl(returnUrlParam);
 
-    // Store returnUrl in sessionStorage for the callback page
+    // Persist for the /callback page (survives Tink redirect)
     sessionStorage.setItem('ppb_return_url', returnUrlParam);
     sessionStorage.setItem('ppb_mode', modeParam);
+    sessionStorage.setItem('ppb_iframe', String(isIframe));
 
     setStatus('loading');
 
-    const callbackUrl = `${config.ppbAppUrl}/callback`;
+    const redirectUri = `${config.ppbAppUrl}/callback`;
 
-    axios
-      .post(`${config.backendUrl}/api/payment-link`, {
-        mode: modeParam,
-        callbackUrl,
-        amount: 114.96,
-        currency: 'EUR',
-      })
-      .then((res) => {
-        const { tinkLinkUrl: tinkUrl } = res.data;
+    async function initPayment() {
+      try {
+        // Step 1 — create a Tink payment request
+        const paymentResp = await createPaymentRequest({
+          recipient: {
+            accountNumber: 'DE89370400440532013000',
+            accountType: 'iban',
+          },
+          amount: 114.96,
+          currency: 'EUR',
+          market: 'DE',
+          recipientName: 'ShopDemo Store',
+          sourceMessage: 'ShopDemo Order #' + Date.now(),
+          remittanceInformation: {
+            type: 'UNSTRUCTURED',
+            value: 'ShopDemo purchase',
+          },
+          paymentScheme: 'SEPA_CREDIT_TRANSFER',
+  //         "amount": 10,
+  // "currency": "GBP",
+  // "destinations": [
+  //   {
+  //     "accountNumber": "18500837110008",
+  //     "type": "sort-code"
+  //   }
+  // ],
+  // "market": "GB",
+  // "merchantId": "aea2d17c-590a-43b8-a066-c88a271966a8",
+  // "metadata": {
+  //   "custom key": "custom value",
+  //   "merchantReference": "17172137"
+  // },
+  // "paymentScheme": "FASTER_PAYMENTS",
+  // "recipient": {
+  //   "accountNumber": "18500837110001",
+  //   "accountType": "sort-code",
+  //   "businessIdentifierCode": "string"
+  // },
+  // "recipientName": "Test AB",
+  // "remittanceInformation": {
+  //   "type": "UNSTRUCTURED",
+  //   "value": "string"
+  // },
+  // "sender": {
+  //   "accountNumber": "18500837110001",
+  //   "accountType": "sort-code",
+  //   "firstName": "string",
+  //   "lastName": "string"
+  // },
+  // "creditor": {
+  //   "accountNumber": "18500837110001",
+  //   "accountType": "sort-code",
+  //   "firstName": "string",
+  //   "lastName": "string"
+  // },
+  // "sourceMessage": "Gym Equipment"
+        });
+
+        setPaymentRequestId(paymentResp.id);
+
+        // Step 2 — get the Tink Link URL
+        const linkResp = await getLinkUrl(paymentResp.id, redirectUri);
+        const tinkUrl = isIframe
+          ? `${linkResp.linkUrl}&iframe=true`
+          : linkResp.linkUrl;
         setTinkLinkUrl(tinkUrl);
 
         if (modeParam === 'redirect') {
           // Full redirect — navigate the whole page to Tink
           window.location.href = tinkUrl;
         } else {
-          // iframe or hybrid — show the TinkIframe component
+          // iframe or hybrid — render TinkIframe
           setStatus('ready');
         }
-      })
-      .catch((err) => {
-        console.error('[Landing] Failed to get payment link:', err);
-        setError(err?.response?.data?.error || 'Failed to create payment session');
-      });
+      } catch (err) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
+        console.error('[Landing] Failed to initialise payment:', err);
+        setError(axiosErr?.response?.data?.error || 'Failed to create payment session');
+      }
+    }
+
+    initPayment();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === 'error') {

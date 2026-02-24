@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { verifyPayment } from '@/api/tinkApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StepIndicator } from '@/components/StepIndicator';
 import { Badge, Card } from '@/components/ui/index';
@@ -31,22 +31,24 @@ export function Callback() {
       return;
     }
 
-    // Call backend to mock account verification
-    axios
-      .post(`${config.backendUrl}/api/verify-payment`, { paymentRequestId })
-      .then(() => {
+    async function verify() {
+      try {
+        await verifyPayment(paymentRequestId);
         setStatus('success');
 
         // After 1.5s of showing success, complete the flow
         setTimeout(() => {
           completeFlow();
         }, 1500);
-      })
-      .catch((err) => {
+      } catch (err) {
+        const axiosErr = err as { response?: { data?: { error?: string } } };
         console.error('[Callback] Verification failed:', err);
         setStatus('error');
-        setErrorMessage(err?.response?.data?.error || 'Account verification failed.');
-      });
+        setErrorMessage(axiosErr?.response?.data?.error || 'Account verification failed.');
+      }
+    }
+
+    verify();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function completeFlow() {

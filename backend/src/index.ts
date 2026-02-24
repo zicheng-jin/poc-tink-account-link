@@ -1,11 +1,11 @@
+import 'dotenv/config'; // MUST be first — loads .env before any route module captures process.env
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import paymentRouter from './routes/payment';
 import verifyRouter from './routes/verify';
-
-dotenv.config();
+import tinkRouter from './routes/tink';
+import mockRouter from './routes/mock';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +38,8 @@ app.use(express.json());
 // Routes
 app.use('/api', paymentRouter);
 app.use('/api', verifyRouter);
+app.use('/api', tinkRouter);
+app.use('/api', mockRouter);
 
 // Health check
 app.get('/health', (_req, res) => {
