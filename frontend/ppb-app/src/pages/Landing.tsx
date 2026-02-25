@@ -26,7 +26,7 @@ const modeBadge: Record<PaymentMode, 'blue' | 'amber' | 'violet'> = {
 export function Landing() {
   const [params] = useSearchParams();
   const {
-    mode, status, tinkLinkUrl,
+    mode, status, tinkLinkUrl, step,
     setMode, setReturnUrl, setTinkLinkUrl, setPaymentRequestId, setStatus, setError,
   } = usePaymentStore();
 
@@ -172,7 +172,7 @@ export function Landing() {
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Step indicator */}
-        <StepIndicator currentStep={status === 'ready' ? 1 : 1} />
+        <StepIndicator currentStep={step} />
 
         {status === 'loading' && (
           <Card className="text-center">

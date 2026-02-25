@@ -13,6 +13,16 @@ const PORT = process.env.PORT || 3001;
 const MERCHANT_APP_URL = process.env.MERCHANT_APP_URL || 'http://localhost:3001';
 const PPB_APP_URL = process.env.PPB_APP_URL || 'http://localhost:3000';
 
+// Guard: warn loudly if critical env vars are missing
+const REQUIRED_ENV = ['TINK_CLIENT_ID', 'TINK_CLIENT_SECRET', 'TINK_API_URL'];
+REQUIRED_ENV.forEach((key) => {
+  if (!process.env[key]) {
+    console.error(`❌ Missing required env var: ${key}`);
+  }
+});
+console.log(`🔑 TINK_CLIENT_ID: ${process.env.TINK_CLIENT_ID ? '✅ set' : '❌ MISSING'}`);
+console.log(`🔑 TINK_CLIENT_SECRET: ${process.env.TINK_CLIENT_SECRET ? '✅ set' : '❌ MISSING'}`);
+
 // Security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },

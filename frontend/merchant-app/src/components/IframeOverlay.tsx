@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { X } from 'lucide-react';
-import { config } from '@/lib/config';
 import { useCheckoutStore } from '@/store/checkoutStore';
+import { useMerchantChannel } from '@/hooks/useMerchantChannel';
 
 interface IframeOverlayProps {
   url: string;
@@ -12,33 +12,28 @@ export function IframeOverlay({ url, onClose }: IframeOverlayProps) {
   const { setPaymentStatus, setPaymentRequestId, closeIframe } = useCheckoutStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      // ✅ Strict origin validation — only trust messages from App B
-      if (event.origin !== config.ppbAppUrl) {
-        console.warn('[IframeOverlay] Ignored message from untrusted origin:', event.origin);
-        return;
-      }
-
-      const { type, paymentRequestId } = event.data ?? {};
-
-      if (type === 'PPB_SUCCESS' && paymentRequestId) {
-        console.log('[IframeOverlay] ✅ PPB_SUCCESS received:', paymentRequestId);
-        setPaymentRequestId(paymentRequestId);
-        setPaymentStatus('success');
-        closeIframe();
-      } else if (type === 'PPB_ERROR') {
-        console.error('[IframeOverlay] ❌ PPB_ERROR received');
-        setPaymentStatus('error');
-        closeIframe();
-      } else if (type === 'PPB_CLOSE') {
-        closeIframe();
-      }
-    }
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [setPaymentStatus, setPaymentRequestId, closeIframe]);
+  useMerchantChannel({
+    onReady: () => {
+      console.log('[IframeOverlay] ppb-app is ready');
+    },
+    onStepChange: (step) => {
+      console.log('[IframeOverlay] ppb-app step changed:', step);
+    },
+    onSuccess: (paymentRequestId) => {
+      console.log('[IframeOverlay] ✅ PPB_SUCCESS received:', paymentRequestId);
+      setPaymentRequestId(paymentRequestId);
+      setPaymentStatus('success');
+      closeIframe();
+    },
+    onError: (message) => {
+      console.error('[IframeOverlay] ❌ PPB_ERROR received:', message);
+      setPaymentStatus('error');
+      closeIframe();
+    },
+    onClose: () => {
+      closeIframe();
+    },
+  });
 
   // Close on backdrop click
   function handleBackdropClick(e: React.MouseEvent) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { verifyPayment } from '@/api/tinkApi';
@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StepIndicator } from '@/components/StepIndicator';
 import { Badge, Card } from '@/components/ui/index';
 import { config } from '@/lib/config';
+import { usePpbChannel } from '@/hooks/usePpbChannel';
 import type { PaymentMode } from '@/store/paymentStore';
 
 type CallbackStatus = 'verifying' | 'success' | 'error';
@@ -14,6 +15,7 @@ export function Callback() {
   const [params] = useSearchParams();
   const [status, setStatus] = useState<CallbackStatus>('verifying');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { sendSuccess, sendError, isInsideIframe } = usePpbChannel();
 
   const paymentRequestId = params.get('payment_request_id');
   const modeParam = (params.get('mode') ||
@@ -43,37 +45,28 @@ export function Callback() {
       } catch (err) {
         const axiosErr = err as { response?: { data?: { error?: string } } };
         console.error('[Callback] Verification failed:', err);
+        const errMsg = axiosErr?.response?.data?.error || 'Account verification failed.';
         setStatus('error');
-        setErrorMessage(axiosErr?.response?.data?.error || 'Account verification failed.');
+        setErrorMessage(errMsg);
+        // Notify merchant of failure via postMessage (iframe/hybrid)
+        sendError(errMsg);
       }
     }
 
     verify();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function completeFlow() {
+  const completeFlow = useCallback(() => {
     const successUrl = `${returnUrl}?status=success&payment_request_id=${paymentRequestId}`;
 
-    if (modeParam === 'redirect') {
-      // Full redirect — navigate merchant app with success params
+    if (modeParam === 'redirect' || !isInsideIframe) {
+      // Full redirect — navigate merchant app directly
       window.location.href = successUrl;
     } else {
-      // iframe or hybrid — postMessage to parent/top with explicit origin
-      const merchantOrigin = new URL(returnUrl).origin;
-      const message = {
-        type: 'PPB_SUCCESS',
-        paymentRequestId,
-      };
-
-      try {
-        // window.top handles both iframe (nested) and hybrid (may be top by now)
-        window.top?.postMessage(message, merchantOrigin);
-      } catch (e) {
-        // Fallback to parent if top throws (e.g. cross-origin restriction in some browsers)
-        window.parent?.postMessage(message, merchantOrigin);
-      }
+      // iframe or hybrid — send typed postMessage via usePpbChannel
+      sendSuccess(paymentRequestId!);
     }
-  }
+  }, [modeParam, returnUrl, paymentRequestId, isInsideIframe, sendSuccess]);
 
   const modeLabels: Record<PaymentMode, string> = {
     iframe: 'Iframe Mode',
