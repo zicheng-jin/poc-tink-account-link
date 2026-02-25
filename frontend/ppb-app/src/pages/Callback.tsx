@@ -33,7 +33,7 @@ export function Callback() {
 
     async function verify() {
       try {
-        await verifyPayment(paymentRequestId);
+        await verifyPayment(paymentRequestId!);
         setStatus('success');
 
         // After 1.5s of showing success, complete the flow

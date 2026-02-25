@@ -28,7 +28,7 @@ router.post('/payment-link', async (req: Request, res: Response): Promise<void> 
   }
 
   // Validate callbackUrl is from the expected PPB app domain
-  const ppbAppUrl = process.env.PPB_APP_URL || 'http://localhost:5174';
+  const ppbAppUrl = process.env.PPB_APP_URL || 'http://localhost:3000';
   if (!callbackUrl.startsWith(ppbAppUrl)) {
     res.status(400).json({ error: 'callbackUrl must be on the PPB app domain' });
     return;

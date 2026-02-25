@@ -25,9 +25,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # envsubst replaces ${MERCHANT_APP_URL} and ${BACKEND_URL} at container start
-ENV MERCHANT_APP_URL=http://localhost:5173
+ENV MERCHANT_APP_URL=http://localhost:3001
 ENV BACKEND_URL=http://localhost:3001
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["/bin/sh", "-c", "envsubst '${MERCHANT_APP_URL} ${BACKEND_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

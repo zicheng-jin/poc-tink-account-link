@@ -10,8 +10,8 @@ import mockRouter from './routes/mock';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const MERCHANT_APP_URL = process.env.MERCHANT_APP_URL || 'http://localhost:5173';
-const PPB_APP_URL = process.env.PPB_APP_URL || 'http://localhost:5174';
+const MERCHANT_APP_URL = process.env.MERCHANT_APP_URL || 'http://localhost:3001';
+const PPB_APP_URL = process.env.PPB_APP_URL || 'http://localhost:3000';
 
 // Security headers
 app.use(helmet({

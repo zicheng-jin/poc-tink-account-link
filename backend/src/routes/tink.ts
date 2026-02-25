@@ -144,7 +144,7 @@ router.get('/tink/link-url', (req: Request, res: Response): void => {
 
   const redirectUri =
     redirect_uri ||
-    `${process.env.PPB_APP_URL || 'http://localhost:5174'}/callback`;
+    `${process.env.PPB_APP_URL || 'http://localhost:3000'}/callback`;
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
