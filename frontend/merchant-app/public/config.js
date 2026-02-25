@@ -1,0 +1,5 @@
+window.__APP_CONFIG__ = {
+  BACKEND_URL: "__BACKEND_URL__",
+  PPB_APP_URL: "__PPB_APP_URL__",
+  MERCHANT_APP_URL: "__MERCHANT_APP_URL__"
+};

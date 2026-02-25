@@ -1,4 +1,4 @@
-# Stage 1: Build
+# Stage 1: Build — no VITE_* args needed, URLs are now runtime via config.js
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -8,14 +8,6 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_BACKEND_URL
-ARG VITE_PPB_APP_URL
-ARG VITE_MERCHANT_APP_URL
-
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
-ENV VITE_PPB_APP_URL=$VITE_PPB_APP_URL
-ENV VITE_MERCHANT_APP_URL=$VITE_MERCHANT_APP_URL
-
 RUN npm run build
 
 # Stage 2: Serve with nginx
@@ -24,10 +16,13 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# envsubst replaces ${PPB_APP_URL} and ${BACKEND_URL} at container start
+# Default values for local docker run (overridden by Cloud Run env vars in production)
 ENV PPB_APP_URL=http://localhost:3000
-ENV BACKEND_URL=http://localhost:3001
+ENV BACKEND_URL=http://localhost:3002
+ENV MERCHANT_APP_URL=http://localhost:3001
 
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "envsubst '${PPB_APP_URL} ${BACKEND_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+# 1) Substitute nginx.conf (CSP headers)
+# 2) Substitute config.js (runtime URLs for React app)
+CMD ["/bin/sh", "-c", "envsubst '${PPB_APP_URL} ${BACKEND_URL} ${MERCHANT_APP_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && envsubst '${BACKEND_URL} ${PPB_APP_URL} ${MERCHANT_APP_URL}' < /usr/share/nginx/html/config.js > /tmp/config.js && mv /tmp/config.js /usr/share/nginx/html/config.js && nginx -g 'daemon off;'"]

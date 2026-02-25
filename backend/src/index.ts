@@ -29,7 +29,8 @@ app.use(cors({
       callback(new Error(`CORS blocked: origin ${origin} not allowed`));
     }
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
 
