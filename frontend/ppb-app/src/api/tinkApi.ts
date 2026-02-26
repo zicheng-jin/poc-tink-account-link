@@ -1,12 +1,23 @@
 import axios from 'axios';
 import { config } from '@/lib/config';
 
+const PPB_JWT_KEY = 'ppb_jwt';
+
 // ---------------------------------------------------------------------------
 // Shared axios instance — all calls go through here
 // ---------------------------------------------------------------------------
 const api = axios.create({
   baseURL: config.backendUrl,
   headers: { 'Content-Type': 'application/json' },
+});
+
+// Attach the JWT stored in sessionStorage to every outgoing request
+api.interceptors.request.use((requestConfig) => {
+  const token = sessionStorage.getItem(PPB_JWT_KEY);
+  if (token) {
+    requestConfig.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return requestConfig;
 });
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,6 @@ import type { PaymentStep } from '@/store/paymentStore';
 interface UseTinkLinkOptions {
   tinkUrl: string;
   mode: string;
-  onCode?: (code: string) => void;
   onError?: (status: string, message: string) => void;
   onStatus?: (loading: boolean) => void;
 }
@@ -20,22 +19,18 @@ function getTinkOrigin(tinkUrl: string): string {
   }
 }
 
-export function useTinkLink({ tinkUrl, mode, onCode, onError, onStatus }: UseTinkLinkOptions) {
+export function useTinkLink({ tinkUrl, mode, onError, onStatus }: UseTinkLinkOptions) {
   const navigate = useNavigate();
   const { setError, setStatus, setStep } = usePaymentStore();
 
   const tinkOrigin = getTinkOrigin(tinkUrl);
 
-  const handleCode = useCallback(
-    (code: string) => {
-      console.log('[useTinkLink] Tink returned code:', code);
-      if (onCode) {
-        onCode(code);
-      } else {
-        navigate(`/callback?code=${code}&mode=${mode}`);
-      }
+  const handlePaymentRequestId = useCallback(
+    (paymentRequestId: string) => {
+      console.log('[useTinkLink] Tink returned payment_request_id:', paymentRequestId);
+      navigate(`/callback?payment_request_id=${paymentRequestId}&mode=${mode}`);
     },
-    [onCode, navigate, mode]
+    [navigate, mode]
   );
 
   const handleError = useCallback(
@@ -93,8 +88,14 @@ export function useTinkLink({ tinkUrl, mode, onCode, onError, onStatus }: UseTin
       console.log('[useTinkLink] Received Tink message:', parsed);
 
       switch (parsed.type) {
+        case 'payment_request_id':
+          // Tink signals payment completion with the payment_request_id
+          handlePaymentRequestId(parsed.data as string);
+          break;
+
         case 'code':
-          handleCode(parsed.data as string);
+          // 'code' is used in account check flows — not applicable here, ignore
+          console.log('[useTinkLink] Received code (ignored in payment flow):', parsed.data);
           break;
 
         case 'error':
@@ -110,11 +111,6 @@ export function useTinkLink({ tinkUrl, mode, onCode, onError, onStatus }: UseTin
           handleStatus((parsed.data as { loading: boolean }).loading);
           break;
 
-        case 'payment_request_id':
-          // Not used in this demo, but could be helpful for correlating events to payment requests in a real app
-          console.log('[useTinkLink] Payment Request ID:', parsed.data);
-          break;
-
         case 'application-event':
             handleApplicationEvent(parsed.data);
             break;
@@ -127,5 +123,5 @@ export function useTinkLink({ tinkUrl, mode, onCode, onError, onStatus }: UseTin
 
     window.addEventListener('message', receiveMessage, false);
     return () => window.removeEventListener('message', receiveMessage);
-  }, [tinkOrigin, handleCode, handleError, handleStatus, handleApplicationEvent]);
+  }, [tinkOrigin, handlePaymentRequestId, handleError, handleStatus, handleApplicationEvent]);
 }

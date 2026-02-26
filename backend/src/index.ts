@@ -2,6 +2,9 @@ import 'dotenv/config'; // MUST be first — loads .env before any route module 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+import authRouter from './routes/auth';
 import paymentRouter from './routes/payment';
 import verifyRouter from './routes/verify';
 import tinkRouter from './routes/tink';
@@ -46,7 +49,28 @@ app.use(cors({
 
 app.use(express.json());
 
-// Routes
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+
+// Public route — issues the app-level JWT (no auth required)
+app.use('/api', authRouter);
+
+// JWT guard — protects all routes mounted after this point
+app.use('/api', (req: Request, res: Response, next: NextFunction): void => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    res.status(401).json({ error: 'Missing authorization token' });
+    return;
+  }
+  try {
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+// Protected routes
 app.use('/api', paymentRouter);
 app.use('/api', verifyRouter);
 app.use('/api', tinkRouter);

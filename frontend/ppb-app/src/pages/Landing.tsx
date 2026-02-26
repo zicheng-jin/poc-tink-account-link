@@ -109,9 +109,10 @@ export function Landing() {
 
         // Step 2 — get the Tink Link URL
         const linkResp = await getLinkUrl(paymentResp.id, redirectUri);
-        const tinkUrl = isIframe
-          ? `${linkResp.linkUrl}&iframe=true`
-          : linkResp.linkUrl;
+        const tinkUrl =
+          modeParam === 'iframe'   ? `${linkResp.linkUrl}&iframe=true` :
+          modeParam === 'hybrid'   ? `${linkResp.linkUrl}&iframe=true&iframe_behaviour=PARENT_REDIRECT` :
+          linkResp.linkUrl; // redirect — no extra params
         setTinkLinkUrl(tinkUrl);
 
         if (modeParam === 'redirect') {
