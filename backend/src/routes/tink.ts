@@ -154,10 +154,10 @@ router.get('/tink/link-url', (req: Request, res: Response): void => {
     payment_request_id,
   });
 
-  // const linkUrl = `${TINK_LINK_URL}/1.0/pay/?${params.toString()}`;
+  const linkUrl = `${TINK_LINK_URL}/1.0/pay/?${params.toString()}`;
 
   // Jersey Instance, replace TINK_LINK_URL with hardcoded value paybybank.jpmorgan.com
-  const linkUrl = `https://paybybank.jpmorgan.com/1.0/pay/?${params.toString()}`;
+  // const linkUrl = `https://paybybank.jpmorgan.com/1.0/pay/?${params.toString()}`;
 
   res.json({ linkUrl });
 });
