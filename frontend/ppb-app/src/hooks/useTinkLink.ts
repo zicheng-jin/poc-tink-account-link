@@ -3,10 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { usePaymentStore } from '@/store/paymentStore';
 import type { PaymentStep } from '@/store/paymentStore';
 
+interface TinkErrorPayload {
+  status: string;
+  message: string;
+  reason?: string;
+  providerName?: string;
+  trackingId?: string;
+}
+
 interface UseTinkLinkOptions {
   tinkUrl: string;
   mode: string;
   onError?: (status: string, message: string) => void;
+  onCancelled?: (message: string, reason?: string, providerName?: string) => void;
   onStatus?: (loading: boolean) => void;
 }
 
@@ -19,7 +28,7 @@ function getTinkOrigin(tinkUrl: string): string {
   }
 }
 
-export function useTinkLink({ tinkUrl, mode, onError, onStatus }: UseTinkLinkOptions) {
+export function useTinkLink({ tinkUrl, mode, onError, onCancelled, onStatus }: UseTinkLinkOptions) {
   const navigate = useNavigate();
   const { setError, setStatus, setStep } = usePaymentStore();
 
@@ -34,15 +43,27 @@ export function useTinkLink({ tinkUrl, mode, onError, onStatus }: UseTinkLinkOpt
   );
 
   const handleError = useCallback(
-    (status: string, message: string) => {
-      console.error(`[useTinkLink] Tink error — status: ${status}, message: ${message}`);
+    ({ status, message, reason, providerName }: TinkErrorPayload) => {
+      console.error(`[useTinkLink] Tink error — status: ${status}, message: ${message}`, { reason, providerName });
+
+      if (status === 'USER_CANCELLED') {
+        console.log('[useTinkLink] User cancelled the Tink journey');
+        if (onCancelled) {
+          onCancelled(message, reason, providerName);
+        } else {
+          const label = providerName ? ` at ${providerName}` : '';
+          setError(`Payment cancelled${label}${reason ? ': ' + reason : ''}`);
+        }
+        return;
+      }
+
       if (onError) {
         onError(status, message);
       } else {
         setError(`Payment failed: ${message} (${status})`);
       }
     },
-    [onError, setError]
+    [onError, onCancelled, setError]
   );
 
   const handleStatus = useCallback(
@@ -75,7 +96,7 @@ export function useTinkLink({ tinkUrl, mode, onError, onStatus }: UseTinkLinkOpt
       let parsed: {
         type: string;
         data?: unknown;
-        error?: { status: string; message: string };
+        error?: TinkErrorPayload;
       };
 
       try {
@@ -99,12 +120,12 @@ export function useTinkLink({ tinkUrl, mode, onError, onStatus }: UseTinkLinkOpt
           break;
 
         case 'error':
-          handleError(parsed.error!.status, parsed.error!.message);
+          handleError(parsed.error!);
           break;
 
         case 'credentials':
           // Auth failure with credentials — treat as error
-          handleError(parsed.error!.status, parsed.error!.message);
+          handleError(parsed.error!);
           break;
 
         case 'status':

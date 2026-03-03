@@ -7,6 +7,7 @@ export type PpbOutboundMessage =
   | { type: 'PPB_STEP_CHANGE'; step: number }
   | { type: 'PPB_SUCCESS'; paymentRequestId: string }
   | { type: 'PPB_ERROR'; message: string }
+  | { type: 'PPB_CANCELLED'; message: string; reason?: string; providerName?: string }
   | { type: 'PPB_CLOSE' };
 
 /**
@@ -62,10 +63,16 @@ export function usePpbChannel() {
     [sendMessage]
   );
 
+  const sendCancelled = useCallback(
+    (message: string, reason?: string, providerName?: string) =>
+      sendMessage({ type: 'PPB_CANCELLED', message, reason, providerName }),
+    [sendMessage]
+  );
+
   const sendClose = useCallback(
     () => sendMessage({ type: 'PPB_CLOSE' }),
     [sendMessage]
   );
 
-  return { sendReady, sendStepChange, sendSuccess, sendError, sendClose, isInsideIframe };
+  return { sendReady, sendStepChange, sendSuccess, sendError, sendCancelled, sendClose, isInsideIframe };
 }

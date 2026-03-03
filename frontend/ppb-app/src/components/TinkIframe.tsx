@@ -5,9 +5,10 @@ import { useTinkLink } from '@/hooks/useTinkLink';
 interface TinkIframeProps {
   url: string;
   mode: 'iframe' | 'redirect' | 'hybrid';
+  onCancelled?: (message: string, reason?: string, providerName?: string) => void;
 }
 
-export function TinkIframe({ url, mode }: TinkIframeProps) {
+export function TinkIframe({ url, mode, onCancelled }: TinkIframeProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [tinkLoading, setTinkLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -15,6 +16,7 @@ export function TinkIframe({ url, mode }: TinkIframeProps) {
   useTinkLink({
     tinkUrl: url,
     mode,
+    onCancelled,
     onStatus: (loading) => setTinkLoading(loading),
   });
 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, AlertCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Card';
 import confetti from 'canvas-confetti';
@@ -22,6 +22,50 @@ export function Success() {
       });
     }
   }, [status]);
+
+  if (status === 'cancelled') {
+    const rawMsg = params.get('message');
+    const errorReason = params.get('error_reason');
+    const displayMsg = rawMsg ? decodeURIComponent(rawMsg) : (errorReason ?? 'You cancelled the payment.');
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="glass-card p-8 max-w-md w-full text-center animate-fade-in">
+          <div className="flex justify-center mb-5">
+            <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center">
+              <AlertCircle className="w-10 h-10 text-amber-500" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Payment Cancelled</h1>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">{displayMsg}</p>
+          <Button className="w-full" onClick={() => navigate('/checkout')}>
+            Back to checkout
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    const rawMsg = params.get('message');
+    const errorReason = params.get('error_reason');
+    const displayMsg = rawMsg ? decodeURIComponent(rawMsg) : (errorReason ?? 'An unexpected error occurred.');
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="glass-card p-8 max-w-md w-full text-center animate-fade-in">
+          <div className="flex justify-center mb-5">
+            <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
+              <XCircle className="w-10 h-10 text-red-500" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Payment Failed</h1>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">{displayMsg}</p>
+          <Button className="w-full" onClick={() => navigate('/checkout')}>
+            Back to checkout
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (status !== 'success') {
     return (

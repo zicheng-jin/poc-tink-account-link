@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Separator } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -21,8 +22,33 @@ const total = subtotal + tax;
 
 export function Checkout() {
   const navigate = useNavigate();
-  const { mode, setMode, paymentStatus, paymentRequestId, iframeOpen, closeIframe } =
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { mode, setMode, paymentStatus, paymentRequestId, iframeOpen, closeIframe, errorMessage, setError, setPaymentStatus } =
     useCheckoutStore();
+
+  // Hybrid mode: Tink redirected window.top back to /checkout with ppb_status params.
+  // Read them once on mount, restore error state, then clean the URL.
+  useEffect(() => {
+    const ppbStatus = searchParams.get('ppb_status');
+    if (!ppbStatus) return;
+    const rawMsg = searchParams.get('ppb_message');
+    const errorReason = searchParams.get('ppb_error_reason');
+    const displayMsg = rawMsg
+      ? decodeURIComponent(rawMsg)
+      : (errorReason ?? (ppbStatus === 'cancelled' ? 'You cancelled the payment.' : 'Payment failed.'));
+    setError(displayMsg);
+    setPaymentStatus('error');
+    // Remove ppb_* params from URL without re-rendering
+    setSearchParams((prev) => {
+      prev.delete('ppb_status');
+      prev.delete('ppb_error');
+      prev.delete('ppb_error_reason');
+      prev.delete('ppb_message');
+      prev.delete('payment_request_id');
+      prev.delete('tracking_id');
+      return prev;
+    }, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ppbUrl = `${config.ppbAppUrl}/?mode=${mode}&returnUrl=${encodeURIComponent(`${config.merchantAppUrl}/success`)}`;
 
@@ -122,7 +148,7 @@ export function Checkout() {
                   <SuccessBanner paymentRequestId={paymentRequestId} />
                 ) : paymentStatus === 'error' ? (
                   <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-                    Payment failed. Please try again.
+                    {errorMessage || 'Payment failed. Please try again.'}
                     <Button
                       variant="outline"
                       size="sm"

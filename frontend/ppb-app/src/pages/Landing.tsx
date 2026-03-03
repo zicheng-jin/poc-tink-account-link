@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { createPaymentRequest, getLinkUrl } from '@/api/tinkApi';
@@ -10,6 +10,7 @@ import { usePaymentStore } from '@/store/paymentStore';
 import type { PaymentMode } from '@/store/paymentStore';
 import { config } from '@/lib/config';
 import { Badge } from '@/components/ui/index';
+import { usePpbChannel } from '@/hooks/usePpbChannel';
 
 const modeLabel: Record<PaymentMode, string> = {
   iframe: 'Iframe Mode',
@@ -29,6 +30,21 @@ export function Landing() {
     mode, status, tinkLinkUrl, step,
     setMode, setReturnUrl, setTinkLinkUrl, setPaymentRequestId, setStatus, setError,
   } = usePaymentStore();
+
+  const { sendCancelled, isInsideIframe } = usePpbChannel();
+
+  const handleCancelled = useCallback(
+    (message: string, reason?: string, providerName?: string) => {
+      console.log('[Landing] Tink journey cancelled by user', { message, reason, providerName });
+      const label = providerName ? ` at ${providerName}` : '';
+      const displayMsg = `Payment cancelled${label}${reason ? ': ' + reason : ''}`;
+      setError(displayMsg);
+      if (isInsideIframe) {
+        sendCancelled(message, reason, providerName);
+      }
+    },
+    [setError, sendCancelled, isInsideIframe]
+  );
 
   useEffect(() => {
     const modeParam = (params.get('mode') || 'iframe') as PaymentMode;
@@ -182,7 +198,7 @@ export function Landing() {
         )}
 
         {status === 'ready' && tinkLinkUrl && (
-          <TinkIframe url={tinkLinkUrl} mode={mode} />
+          <TinkIframe url={tinkLinkUrl} mode={mode} onCancelled={handleCancelled} />
         )}
       </div>
     </div>

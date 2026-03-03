@@ -7,6 +7,7 @@ export type PpbInboundMessage =
   | { type: 'PPB_STEP_CHANGE'; step: number }
   | { type: 'PPB_SUCCESS'; paymentRequestId: string }
   | { type: 'PPB_ERROR'; message: string }
+  | { type: 'PPB_CANCELLED'; message: string; reason?: string; providerName?: string }
   | { type: 'PPB_CLOSE' };
 
 interface UseMerchantChannelOptions {
@@ -14,6 +15,7 @@ interface UseMerchantChannelOptions {
   onStepChange?: (step: number) => void;
   onSuccess: (paymentRequestId: string) => void;
   onError: (message: string) => void;
+  onCancelled?: (message: string, reason?: string, providerName?: string) => void;
   onClose: () => void;
 }
 
@@ -26,6 +28,7 @@ export function useMerchantChannel({
   onStepChange,
   onSuccess,
   onError,
+  onCancelled,
   onClose,
 }: UseMerchantChannelOptions) {
   const ppbOrigin = (() => {
@@ -60,6 +63,9 @@ export function useMerchantChannel({
         case 'PPB_ERROR':
           onError(msg.message);
           break;
+        case 'PPB_CANCELLED':
+          onCancelled?.(msg.message, msg.reason, msg.providerName);
+          break;
         case 'PPB_CLOSE':
           onClose();
           break;
@@ -68,7 +74,7 @@ export function useMerchantChannel({
           console.log('[useMerchantChannel] Unknown message type (ignored):', (msg as { type: string })?.type);
       }
     },
-    [ppbOrigin, onReady, onStepChange, onSuccess, onError, onClose]
+    [ppbOrigin, onReady, onStepChange, onSuccess, onError, onCancelled, onClose]
   );
 
   useEffect(() => {

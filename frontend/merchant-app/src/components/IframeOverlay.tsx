@@ -9,7 +9,7 @@ interface IframeOverlayProps {
 }
 
 export function IframeOverlay({ url, onClose }: IframeOverlayProps) {
-  const { setPaymentStatus, setPaymentRequestId, closeIframe } = useCheckoutStore();
+  const { setPaymentStatus, setPaymentRequestId, setError, closeIframe } = useCheckoutStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useMerchantChannel({
@@ -27,6 +27,15 @@ export function IframeOverlay({ url, onClose }: IframeOverlayProps) {
     },
     onError: (message) => {
       console.error('[IframeOverlay] ❌ PPB_ERROR received:', message);
+      setError(message);
+      setPaymentStatus('error');
+      closeIframe();
+    },
+    onCancelled: (message, reason, providerName) => {
+      console.log('[IframeOverlay] ⚠️ PPB_CANCELLED received:', { message, reason, providerName });
+      const label = providerName ? ` at ${providerName}` : '';
+      const displayMsg = `Payment cancelled${label}${reason ? ': ' + reason : ''}`;
+      setError(displayMsg);
       setPaymentStatus('error');
       closeIframe();
     },
