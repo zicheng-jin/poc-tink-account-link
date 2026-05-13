@@ -1,0 +1,62 @@
+✅ Pay-by-Bank Integration Modes — Pros & Cons
+Mode	Pros	Cons
+🥇 Full Redirect
+(Preferred Default)	• Provides the most stable and predictable end-to-end journey with a clear linear navigation flow
+
+• Fully aligned with bank security requirements since authentication occurs in top-level browser context
+
+• Avoids iframe sandbox restrictions, popup blockers, and cross-window messaging complexity
+
+• Requires the lowest engineering effort with simpler state management and navigation handling
+
+• Easiest mode to test, automate, monitor, and debug across browsers and devices
+
+• Strong mobile stability with no tab confusion or popup blocking behavior
+
+• Matches common industry patterns, making the experience familiar to users	• Users temporarily leave the merchant checkout page during authentication steps
+
+• Checkout UI and cart context are not visible while users interact with bank pages
+
+• Experience feels less visually embedded compared to iframe-based approaches
+
+• Flow can be interrupted if users close the tab or browser before returning
+
+• Reduced white-label control because the Tink domain becomes visible during redirect steps
+🥈 Hybrid (Embed → Redirect for Auth)	• Keeps checkout page visible during early steps like bank selection and consent, preserving shopping context
+
+• Provides a more seamless and modern experience compared to full redirect alone
+
+• Uses full redirect only when bank authentication begins, improving compatibility and reliability
+
+• Balances user experience smoothness with technical robustness
+
+• Allows merchants to present alternative payment methods alongside Pay-by-Bank in embedded view	• More complex implementation due to combining iframe embedding and full-page redirect flows
+
+• Requires additional state synchronization between embedded content and redirect navigation
+
+• Needs cross-window communication mechanisms with strict origin validation
+
+• Higher QA effort due to multiple navigation patterns across browsers and devices
+
+• iframe permissions and CSP policies must be carefully configured and maintained
+
+• Reduced white-label control because the Tink domain becomes visible during redirect phase
+🥉 Full iFrame (Popup / New Tab for Bank)	• Merchant checkout page remains visible throughout the journey, preserving full shopping context
+
+• Delivers the most visually seamless and tightly integrated on-page user experience
+
+• Strongest white-label presentation since users stay within merchant environment
+
+• Useful when UI continuity and on-page embedding are high business priorities	• Desktop popup blockers may prevent bank authentication windows from opening automatically
+
+• Mobile devices may open authentication in separate tabs, causing confusion and user drop-offs
+
+• Many banks restrict or block authentication inside iframes due to security policies
+
+• Users often must manually return to the original tab, creating friction in the journey
+
+• Nested iframe layouts can introduce scrolling, sizing, and button visibility issues on small screens
+
+• Highest engineering complexity due to popup lifecycle handling and message orchestration
+
+• Most difficult mode to test, automate, monitor, and debug reliably
