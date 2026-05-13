@@ -58,6 +58,8 @@ export function Landing() {
     sessionStorage.setItem('ppb_return_url', returnUrlParam);
     sessionStorage.setItem('ppb_mode', modeParam);
     sessionStorage.setItem('ppb_iframe', String(isIframe));
+    // TEST: verify sessionStorage survives the redirect
+    sessionStorage.setItem('ppb_session_test', `session_started_${Date.now()}`);
 
     setStatus('loading');
 

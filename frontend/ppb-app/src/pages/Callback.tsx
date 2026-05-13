@@ -30,6 +30,13 @@ export function Callback() {
     sessionStorage.getItem('ppb_return_url') ||
     config.merchantAppUrl;
 
+  // TEST: check whether sessionStorage survived the redirect
+  const sessionTest = sessionStorage.getItem('ppb_session_test');
+  console.log(
+    '[Callback] SessionStorage retention test:',
+    sessionTest ? `PASSED ✓ (value: ${sessionTest})` : 'FAILED ✗ (ppb_session_test not found)',
+  );
+
   useEffect(() => {
     // Tink redirected back with an error param — do NOT verify, treat as cancellation
     if (errorParam) {
@@ -46,17 +53,17 @@ export function Callback() {
           sendError(displayMsg);
         }
       } else if (modeParam === 'hybrid') {
-        // Hybrid mode — Tink redirected window.top (merchant-app frame) here.
-        // Send the user back to merchant /checkout with error params so the
-        // checkout page can show the inline error, same as iframe mode.
-        const checkoutUrl = new URL(`${returnUrl.replace(/\/success$/, '')}/checkout`);
-        checkoutUrl.searchParams.set('ppb_status', isUserCancelled ? 'cancelled' : 'error');
-        checkoutUrl.searchParams.set('ppb_error', errorParam);
-        if (errorReason)      checkoutUrl.searchParams.set('ppb_error_reason', errorReason);
-        if (tinkMessage)      checkoutUrl.searchParams.set('ppb_message', tinkMessage);
-        if (paymentRequestId) checkoutUrl.searchParams.set('payment_request_id', paymentRequestId);
-        if (trackingId)       checkoutUrl.searchParams.set('tracking_id', trackingId);
-        window.location.href = checkoutUrl.toString();
+        // Hybrid mode — iframe_behaviour=PARENT_REDIRECT caused Tink to redirect
+        // window.top here. Treat the same as redirect mode: forward to returnUrl
+        // so merchant-app's Success page shows the cancel/error UI.
+        const cancelUrl = new URL(returnUrl);
+        cancelUrl.searchParams.set('status', isUserCancelled ? 'cancelled' : 'error');
+        cancelUrl.searchParams.set('error', errorParam);
+        if (errorReason)      cancelUrl.searchParams.set('error_reason', errorReason);
+        if (tinkMessage)      cancelUrl.searchParams.set('message', tinkMessage);
+        if (paymentRequestId) cancelUrl.searchParams.set('payment_request_id', paymentRequestId);
+        if (trackingId)       cancelUrl.searchParams.set('tracking_id', trackingId);
+        window.location.href = cancelUrl.toString();
       } else {
         // Redirect mode — forward all error params to merchant-app returnUrl
         const cancelUrl = new URL(returnUrl);
