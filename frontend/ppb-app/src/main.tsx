@@ -3,6 +3,15 @@ import './index.css'
 import App from './App.tsx'
 import { fetchAppToken } from './api/authApi'
 
+// --app-height polyfill: window.innerHeight already excludes the mobile
+// browser URL bar on all browsers (including old Safari < 15.4 where
+// 100vh incorrectly equals the full screen height).
+function updateAppHeight() {
+  document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+}
+updateAppHeight();
+window.addEventListener('resize', updateAppHeight);
+
 const PPB_JWT_KEY = 'ppb_jwt';
 
 async function bootstrap() {

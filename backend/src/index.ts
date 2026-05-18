@@ -15,6 +15,8 @@ const PORT = process.env.PORT || 3001;
 
 const MERCHANT_APP_URL = process.env.MERCHANT_APP_URL || 'http://localhost:3001';
 const PPB_APP_URL = process.env.PPB_APP_URL || 'http://localhost:3000';
+// Comma-separated extra origins for mobile/LAN testing (e.g. http://192.168.0.163:3000,http://192.168.0.163:3001)
+const EXTRA_ORIGINS = (process.env.EXTRA_ORIGINS || '').split(',').filter(Boolean);
 
 // Guard: warn loudly if critical env vars are missing
 const REQUIRED_ENV = ['TINK_CLIENT_ID', 'TINK_CLIENT_SECRET', 'TINK_API_URL'];
@@ -32,10 +34,10 @@ app.use(helmet({
   contentSecurityPolicy: false, // handled in nginx for frontends
 }));
 
-// Strict CORS — only allow our two apps
+// CORS — allow our two apps plus any extra origins (e.g. LAN IP for mobile testing)
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [MERCHANT_APP_URL, PPB_APP_URL];
+    const allowed = [MERCHANT_APP_URL, PPB_APP_URL, ...EXTRA_ORIGINS];
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {

@@ -54,7 +54,7 @@ export function Landing() {
     setMode(modeParam);
     setReturnUrl(returnUrlParam);
 
-    // Persist for the /callback page (survives Tink redirect)
+    // Persist for the /callback/tink page (survives Tink redirect)
     sessionStorage.setItem('ppb_return_url', returnUrlParam);
     sessionStorage.setItem('ppb_mode', modeParam);
     sessionStorage.setItem('ppb_iframe', String(isIframe));
@@ -63,7 +63,7 @@ export function Landing() {
 
     setStatus('loading');
 
-    const redirectUri = `${config.ppbAppUrl}/callback`;
+    const redirectUri = `${config.ppbAppUrl}/callback/tink`;
 
     async function initPayment() {
       try {

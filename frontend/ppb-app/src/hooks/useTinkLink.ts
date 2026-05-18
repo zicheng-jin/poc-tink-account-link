@@ -37,7 +37,7 @@ export function useTinkLink({ tinkUrl, mode, onError, onCancelled, onStatus }: U
   const handlePaymentRequestId = useCallback(
     (paymentRequestId: string) => {
       console.log('[useTinkLink] Tink returned payment_request_id:', paymentRequestId);
-      navigate(`/callback?payment_request_id=${paymentRequestId}&mode=${mode}`);
+      navigate(`/callback/tink?payment_request_id=${paymentRequestId}&mode=${mode}`);
     },
     [navigate, mode]
   );

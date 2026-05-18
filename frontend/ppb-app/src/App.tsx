@@ -8,7 +8,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/callback" element={<Callback />} />
+        <Route path="/callback/tink" element={<Callback />} />
         <Route path="/welcome" element={<Welcome />} />
       </Routes>
     </BrowserRouter>

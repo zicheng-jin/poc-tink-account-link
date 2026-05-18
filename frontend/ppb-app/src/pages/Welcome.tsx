@@ -19,7 +19,7 @@ export function Welcome() {
      * is visible, so the page always fits exactly within the visible area
      * and the footer is never hidden behind browser chrome.
      */
-    <div className="flex flex-col h-[100dvh] bg-white">
+    <div className="h-dvh flex flex-col bg-white">
 
       {/* ── Scrollable main content ─────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-6 pt-6 pb-4">

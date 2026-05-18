@@ -49,6 +49,19 @@ body {
 .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
 .animate-progress { animation: progress-bar 2s ease-in-out infinite; }
 
+/* Dynamic viewport height with progressive fallback:
+   1. 100vh          — very old browsers (no dvh, no CSS var support)
+   2. 100dvh         — overrides #1 on Safari 15.4+, Chrome 108+
+   3. var(--app-height, 100dvh) — overrides #2 on all browsers that support
+      CSS custom properties; --app-height is set via window.innerHeight in
+      main.tsx, so it always excludes the mobile browser URL bar.
+*/
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+  height: var(--app-height, 100dvh);
+}
+
 .glass-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;

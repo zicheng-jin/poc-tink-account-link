@@ -112,7 +112,10 @@ export function Callback() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completeFlow = useCallback(() => {
-    const successUrl = `${returnUrl}?status=success&payment_request_id=${paymentRequestId}`;
+    const successUrlObj = new URL(returnUrl);
+    successUrlObj.searchParams.set('status', 'success');
+    successUrlObj.searchParams.set('payment_request_id', paymentRequestId!);
+    const successUrl = successUrlObj.toString();
 
     if (modeParam === 'redirect' || !isInsideIframe) {
       // Full redirect — navigate merchant app directly
