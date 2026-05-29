@@ -10,7 +10,7 @@ declare global {
 
 function getRuntimeConfig() {
   const runtime = window.__APP_CONFIG__;
-  const isPlaceholder = (val: string | undefined) => !val || val.startsWith('__');
+  const isPlaceholder = (val: string | undefined) => val === undefined || val === null || val.startsWith('__');
   return {
     backendUrl: (!isPlaceholder(runtime?.BACKEND_URL) ? runtime.BACKEND_URL : null)
       ?? import.meta.env.VITE_BACKEND_URL

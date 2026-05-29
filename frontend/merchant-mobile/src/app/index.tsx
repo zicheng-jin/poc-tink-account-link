@@ -6,8 +6,10 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { useRouter } from 'expo-router';
 
 import { config } from '@/lib/config';
 
@@ -19,21 +21,38 @@ const ORDER_ITEMS = [
 
 const ORDER_TOTAL = ORDER_ITEMS.reduce((sum, item) => sum + item.price * item.qty, 0);
 
+// The custom scheme that iOS will intercept and hand back to this app
+const REDIRECT_SCHEME = 'merchantcheckout';
+
 export default function CheckoutScreen() {
   const [orderId] = useState(() => `ORD-${Date.now()}`);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   async function handlePayByBank() {
     setLoading(true);
     try {
-      // Deep link the OS will intercept after PPB completes
-      const returnUrl = `merchantcheckout://payment/success?orderId=${orderId}`;
-      // Open the existing PPB web app in redirect mode
+      // returnUrl uses the custom scheme — iOS intercepts this and closes SFSafariViewController
+      const returnUrl = `${REDIRECT_SCHEME}://payment/success?orderId=${orderId}`;
       const ppbUrl = `${config.ppbAppUrl}/?mode=redirect&returnUrl=${encodeURIComponent(returnUrl)}`;
 
-      await WebBrowser.openBrowserAsync(ppbUrl, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-      });
+      // openAuthSessionAsync is designed for OAuth/redirect flows — it watches for the
+      // redirectUrl scheme and hands control back to the app when Tink redirects there
+      const result = await WebBrowser.openAuthSessionAsync(ppbUrl, `${REDIRECT_SCHEME}://`);
+
+      if (result.type === 'success') {
+        // result.url = the full deep link, e.g.
+        // merchantcheckout://payment/success?orderId=ORD-123&status=success&payment_request_id=abc
+        // Strip the scheme+host to get an Expo Router path: /payment/success?...
+        const path = result.url.replace(`${REDIRECT_SCHEME}:/`, '');
+        router.push(path as never);
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // User closed the browser manually — do nothing, stay on checkout
+        console.log('[handlePayByBank] Browser dismissed by user');
+      }
+    } catch (err) {
+      console.error('[handlePayByBank] Error:', err);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

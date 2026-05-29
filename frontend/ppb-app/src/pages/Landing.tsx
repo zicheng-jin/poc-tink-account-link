@@ -1,6 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
+import { Building2, ChevronRight } from 'lucide-react';
 import { createPaymentRequest, getLinkUrl } from '@/api/tinkApi';
 import { Card } from '@/components/ui/index';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -33,6 +33,10 @@ export function Landing() {
 
   const { sendCancelled, isInsideIframe } = usePpbChannel();
 
+  // Dev panel state — only used in redirect mode for testing return URLs
+  const [devReturnUrl, setDevReturnUrl] = useState('');
+  const [devPanelReady, setDevPanelReady] = useState(false); // true = show panel, false = auto-start
+
   const handleCancelled = useCallback(
     (message: string, reason?: string, providerName?: string) => {
       console.log('[Landing] Tink journey cancelled by user', { message, reason, providerName });
@@ -46,6 +50,53 @@ export function Landing() {
     [setError, sendCancelled, isInsideIframe]
   );
 
+  async function initPayment(returnUrlOverride?: string) {
+    const modeParam = mode;
+    const returnUrlParam = returnUrlOverride
+      || localStorage.getItem('ppb_return_url')
+      || config.merchantAppUrl;
+
+    setStatus('loading');
+
+    // Persist chosen returnUrl for the /callback/tink page (survives Tink redirect)
+    localStorage.setItem('ppb_return_url', returnUrlParam);
+    sessionStorage.setItem('ppb_return_url', returnUrlParam);
+
+    const redirectUri = `${config.ppbAppUrl}/callback/tink`;
+
+    try {
+      const paymentResp = await createPaymentRequest({
+        recipient: { accountNumber: 'DE89370400440532013000', accountType: 'iban' },
+        amount: 114.96,
+        currency: 'EUR',
+        market: 'DE',
+        recipientName: 'ShopDemo Store',
+        sourceMessage: 'ShopDemo Order #' + Date.now(),
+        remittanceInformation: { type: 'UNSTRUCTURED', value: 'ShopDemo purchase' },
+        paymentScheme: 'SEPA_CREDIT_TRANSFER',
+      });
+
+      setPaymentRequestId(paymentResp.id);
+
+      const linkResp = await getLinkUrl(paymentResp.id, redirectUri);
+      const tinkUrl =
+        modeParam === 'iframe'  ? `${linkResp.linkUrl}&iframe=true` :
+        modeParam === 'hybrid'  ? `${linkResp.linkUrl}&iframe=true&iframe_behaviour=PARENT_REDIRECT` :
+        linkResp.linkUrl;
+      setTinkLinkUrl(tinkUrl);
+
+      if (modeParam === 'redirect') {
+        window.location.href = tinkUrl;
+      } else {
+        setStatus('ready');
+      }
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      console.error('[Landing] Failed to initialise payment:', err);
+      setError(axiosErr?.response?.data?.error || 'Failed to create payment session');
+    }
+  }
+
   useEffect(() => {
     const modeParam = (params.get('mode') || 'iframe') as PaymentMode;
     const returnUrlParam = params.get('returnUrl') || config.merchantAppUrl;
@@ -53,102 +104,48 @@ export function Landing() {
 
     setMode(modeParam);
     setReturnUrl(returnUrlParam);
+    setDevReturnUrl(returnUrlParam);
 
-    // Persist for the /callback/tink page (survives Tink redirect)
+    localStorage.setItem('ppb_return_url', returnUrlParam);
+    localStorage.setItem('ppb_mode', modeParam);
+    localStorage.setItem('ppb_iframe', String(isIframe));
     sessionStorage.setItem('ppb_return_url', returnUrlParam);
     sessionStorage.setItem('ppb_mode', modeParam);
     sessionStorage.setItem('ppb_iframe', String(isIframe));
-    // TEST: verify sessionStorage survives the redirect
-    sessionStorage.setItem('ppb_session_test', `session_started_${Date.now()}`);
 
-    setStatus('loading');
-
-    const redirectUri = `${config.ppbAppUrl}/callback/tink`;
-
-    async function initPayment() {
-      try {
-        // Step 1 — create a Tink payment request
-        const paymentResp = await createPaymentRequest({
-          recipient: {
-            accountNumber: 'DE89370400440532013000',
-            accountType: 'iban',
-          },
-          amount: 114.96,
-          currency: 'EUR',
-          market: 'DE',
-          recipientName: 'ShopDemo Store',
-          sourceMessage: 'ShopDemo Order #' + Date.now(),
-          remittanceInformation: {
-            type: 'UNSTRUCTURED',
-            value: 'ShopDemo purchase',
-          },
-          paymentScheme: 'SEPA_CREDIT_TRANSFER',
-  //         "amount": 10,
-  // "currency": "GBP",
-  // "destinations": [
-  //   {
-  //     "accountNumber": "18500837110008",
-  //     "type": "sort-code"
-  //   }
-  // ],
-  // "market": "GB",
-  // "merchantId": "aea2d17c-590a-43b8-a066-c88a271966a8",
-  // "metadata": {
-  //   "custom key": "custom value",
-  //   "merchantReference": "17172137"
-  // },
-  // "paymentScheme": "FASTER_PAYMENTS",
-  // "recipient": {
-  //   "accountNumber": "18500837110001",
-  //   "accountType": "sort-code",
-  //   "businessIdentifierCode": "string"
-  // },
-  // "recipientName": "Test AB",
-  // "remittanceInformation": {
-  //   "type": "UNSTRUCTURED",
-  //   "value": "string"
-  // },
-  // "sender": {
-  //   "accountNumber": "18500837110001",
-  //   "accountType": "sort-code",
-  //   "firstName": "string",
-  //   "lastName": "string"
-  // },
-  // "creditor": {
-  //   "accountNumber": "18500837110001",
-  //   "accountType": "sort-code",
-  //   "firstName": "string",
-  //   "lastName": "string"
-  // },
-  // "sourceMessage": "Gym Equipment"
-        });
-
-        setPaymentRequestId(paymentResp.id);
-
-        // Step 2 — get the Tink Link URL
-        const linkResp = await getLinkUrl(paymentResp.id, redirectUri);
-        const tinkUrl =
-          modeParam === 'iframe'   ? `${linkResp.linkUrl}&iframe=true` :
-          modeParam === 'hybrid'   ? `${linkResp.linkUrl}&iframe=true&iframe_behaviour=PARENT_REDIRECT` :
-          linkResp.linkUrl; // redirect — no extra params
-        setTinkLinkUrl(tinkUrl);
-
-        if (modeParam === 'redirect') {
-          // Full redirect — navigate the whole page to Tink
-          window.location.href = tinkUrl;
-        } else {
-          // iframe or hybrid — render TinkIframe
-          setStatus('ready');
-        }
-      } catch (err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        console.error('[Landing] Failed to initialise payment:', err);
-        setError(axiosErr?.response?.data?.error || 'Failed to create payment session');
-      }
+    if (modeParam === 'redirect') {
+      // Show dev panel first so tester can choose the return URL
+      setDevPanelReady(true);
+    } else {
+      // iframe / hybrid — auto-start immediately
+      initPayment(returnUrlParam);
     }
-
-    initPayment();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-defined test return URL options
+  const TEST_URLS = [
+    {
+      label: 'Deep Link',
+      sublabel: 'merchantcheckout://',
+      value: 'merchantcheckout://payment/success',
+      color: 'bg-violet-50 border-violet-200 text-violet-700',
+      dot: 'bg-violet-500',
+    },
+    {
+      label: 'Universal Link',
+      sublabel: 'https://',
+      value: 'https://example.com/payment/success',
+      color: 'bg-blue-50 border-blue-200 text-blue-700',
+      dot: 'bg-blue-500',
+    },
+    {
+      label: 'Web App',
+      sublabel: 'localhost / LAN',
+      value: `${config.merchantAppUrl}/success`,
+      color: 'bg-slate-50 border-slate-200 text-slate-700',
+      dot: 'bg-slate-400',
+    },
+  ];
 
   if (status === 'error') {
     return (
@@ -192,6 +189,58 @@ export function Landing() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Step indicator */}
         <StepIndicator currentStep={step} />
+
+        {/* Dev Panel — redirect mode only, shown before payment starts */}
+        {devPanelReady && status === 'idle' && (
+          <Card className="mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Dev / Test</span>
+              <span className="flex-1 h-px bg-slate-100" />
+              <span className="text-xs text-slate-400">Choose return URL</span>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              {TEST_URLS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDevReturnUrl(opt.value)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                    devReturnUrl === opt.value
+                      ? opt.color + ' ring-2 ring-offset-1 ring-current'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${devReturnUrl === opt.value ? opt.dot : 'bg-slate-300'}`} />
+                  <span className="flex-1 min-w-0">
+                    <span className="text-sm font-medium block">{opt.label}</span>
+                    <span className="text-xs opacity-60 truncate block">{opt.value}</span>
+                  </span>
+                  {devReturnUrl === opt.value && <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-60" />}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom URL input */}
+            <div className="mb-4">
+              <label className="text-xs text-slate-400 font-medium block mb-1">Custom URL</label>
+              <input
+                type="text"
+                value={devReturnUrl}
+                onChange={(e) => setDevReturnUrl(e.target.value)}
+                placeholder="merchantcheckout://... or https://..."
+                className="w-full text-xs font-mono px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
+              />
+            </div>
+
+            <button
+              onClick={() => initPayment(devReturnUrl)}
+              disabled={!devReturnUrl}
+              className="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            >
+              Start Payment →
+            </button>
+          </Card>
+        )}
 
         {status === 'loading' && (
           <Card className="text-center">

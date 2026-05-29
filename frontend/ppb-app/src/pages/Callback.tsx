@@ -22,13 +22,15 @@ export function Callback() {
   const errorReason   = params.get('error_reason'); // e.g. USER_CANCELLED
   const tinkMessage   = params.get('message');      // human-readable string from Tink
   const trackingId    = params.get('tracking_id');
-  const modeParam = (params.get('mode') ||
-    sessionStorage.getItem('ppb_mode') ||
-    'redirect') as PaymentMode;
   const returnUrl =
     params.get('returnUrl') ||
     sessionStorage.getItem('ppb_return_url') ||
+    localStorage.getItem('ppb_return_url') ||
     config.merchantAppUrl;
+  const modeParam = (params.get('mode') ||
+    sessionStorage.getItem('ppb_mode') ||
+    localStorage.getItem('ppb_mode') ||
+    'redirect') as PaymentMode;
 
   // TEST: check whether sessionStorage survived the redirect
   const sessionTest = sessionStorage.getItem('ppb_session_test');
