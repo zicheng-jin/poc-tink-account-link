@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Building2, ChevronRight } from 'lucide-react';
-import { createPaymentRequest, getLinkUrl } from '@/api/tinkApi';
+import { createPaymentRequest, getLinkUrl, saveSession } from '@/api/tinkApi';
 import { Card } from '@/components/ui/index';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StepIndicator } from '@/components/StepIndicator';
@@ -77,6 +77,9 @@ export function Landing() {
       });
 
       setPaymentRequestId(paymentResp.id);
+
+      // Save session on backend so cross-browser flows (Chrome) can retrieve returnUrl
+      await saveSession(paymentResp.id, returnUrlParam, modeParam);
 
       const linkResp = await getLinkUrl(paymentResp.id, redirectUri);
       const tinkUrl =

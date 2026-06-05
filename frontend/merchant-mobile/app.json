@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.anonymous.merchant-mobile"
+      "bundleIdentifier": "com.anonymous.merchant-mobile",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["googlechrome", "googlechromes"]
+      }
     },
     "android": {
       "adaptiveIcon": {

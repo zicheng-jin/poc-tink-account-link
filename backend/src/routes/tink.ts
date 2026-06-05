@@ -9,6 +9,35 @@ const CLIENT_ID = process.env.TINK_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.TINK_CLIENT_SECRET || '';
 
 // ---------------------------------------------------------------------------
+// In-memory session store — keyed by payment_request_id
+// Stores returnUrl + mode so cross-browser flows (e.g. Chrome external browser)
+// can retrieve them in /callback/tink without relying on localStorage/sessionStorage
+// ---------------------------------------------------------------------------
+const sessionStore = new Map<string, { returnUrl: string; mode: string }>();
+
+// POST /api/tink/session  { paymentRequestId, returnUrl, mode }
+router.post('/tink/session', (req: Request, res: Response): void => {
+  const { paymentRequestId, returnUrl, mode } = req.body;
+  if (!paymentRequestId || !returnUrl) {
+    res.status(400).json({ error: '`paymentRequestId` and `returnUrl` are required' });
+    return;
+  }
+  sessionStore.set(paymentRequestId, { returnUrl, mode: mode || 'redirect' });
+  res.json({ ok: true });
+});
+
+// GET /api/tink/session/:paymentRequestId
+router.get('/tink/session/:paymentRequestId', (req: Request, res: Response): void => {
+  const { paymentRequestId } = req.params;
+  const session = sessionStore.get(paymentRequestId as string);
+  if (!session) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+  res.json(session);
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/tink/token
 // Fetches a client_credentials access token from Tink using env credentials.
 // ---------------------------------------------------------------------------

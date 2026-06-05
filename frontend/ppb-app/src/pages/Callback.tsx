@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle } from 'lucide-react';
-import { verifyPayment } from '@/api/tinkApi';
+import { verifyPayment, getSession } from '@/api/tinkApi';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StepIndicator } from '@/components/StepIndicator';
 import { Badge, Card } from '@/components/ui/index';
@@ -15,31 +15,49 @@ export function Callback() {
   const [params] = useSearchParams();
   const [status, setStatus] = useState<CallbackStatus>('verifying');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [returnUrl, setReturnUrl] = useState<string>(config.merchantAppUrl);
+  const [modeParam, setModeParam] = useState<PaymentMode>('redirect');
+  const [sessionResolved, setSessionResolved] = useState(false);
   const { sendSuccess, sendError, sendCancelled, isInsideIframe } = usePpbChannel();
 
   const paymentRequestId = params.get('payment_request_id');
-  const errorParam    = params.get('error');        // e.g. USER_CANCELLED
-  const errorReason   = params.get('error_reason'); // e.g. USER_CANCELLED
-  const tinkMessage   = params.get('message');      // human-readable string from Tink
+  const errorParam    = params.get('error');
+  const errorReason   = params.get('error_reason');
+  const tinkMessage   = params.get('message');
   const trackingId    = params.get('tracking_id');
-  const returnUrl =
-    params.get('returnUrl') ||
-    sessionStorage.getItem('ppb_return_url') ||
-    localStorage.getItem('ppb_return_url') ||
-    config.merchantAppUrl;
-  const modeParam = (params.get('mode') ||
-    sessionStorage.getItem('ppb_mode') ||
-    localStorage.getItem('ppb_mode') ||
-    'redirect') as PaymentMode;
 
-  // TEST: check whether sessionStorage survived the redirect
-  const sessionTest = sessionStorage.getItem('ppb_session_test');
-  console.log(
-    '[Callback] SessionStorage retention test:',
-    sessionTest ? `PASSED ✓ (value: ${sessionTest})` : 'FAILED ✗ (ppb_session_test not found)',
-  );
+  // Resolve returnUrl + mode: URL params > storage > backend session > fallback
+  useEffect(() => {
+    async function resolveSession() {
+      const urlReturnUrl = params.get('returnUrl');
+      const urlMode = params.get('mode') as PaymentMode | null;
+
+      const storedReturnUrl = sessionStorage.getItem('ppb_return_url') || localStorage.getItem('ppb_return_url');
+      const storedMode = (sessionStorage.getItem('ppb_mode') || localStorage.getItem('ppb_mode')) as PaymentMode | null;
+
+      let resolvedReturnUrl = urlReturnUrl || storedReturnUrl;
+      let resolvedMode = urlMode || storedMode;
+
+      // Cross-browser fallback: fetch from backend session store
+      if ((!resolvedReturnUrl || !resolvedMode) && paymentRequestId) {
+        console.log('[Callback] Storage empty — fetching session from backend');
+        const session = await getSession(paymentRequestId);
+        if (session) {
+          resolvedReturnUrl = resolvedReturnUrl || session.returnUrl;
+          resolvedMode = resolvedMode || (session.mode as PaymentMode);
+        }
+      }
+
+      setReturnUrl(resolvedReturnUrl || config.merchantAppUrl);
+      setModeParam(resolvedMode || 'redirect');
+      setSessionResolved(true);
+    }
+    resolveSession();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!sessionResolved) return;
+
     // Tink redirected back with an error param — do NOT verify, treat as cancellation
     if (errorParam) {
       console.log('[Callback] Tink returned error params:', { errorParam, errorReason, tinkMessage, trackingId });
@@ -111,7 +129,7 @@ export function Callback() {
     }
 
     verify();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionResolved]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completeFlow = useCallback(() => {
     const successUrlObj = new URL(returnUrl);
@@ -120,7 +138,6 @@ export function Callback() {
     const successUrl = successUrlObj.toString();
 
     if (modeParam === 'redirect' || !isInsideIframe) {
-      // Full redirect — navigate merchant app directly
       window.location.href = successUrl;
     } else {
       // iframe or hybrid — send typed postMessage via usePpbChannel

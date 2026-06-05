@@ -6,8 +6,13 @@
 // };
 
 // Local dev config — update IP to match your current network
+// window.__APP_CONFIG__ = {
+//   BACKEND_URL: "",
+//   PPB_APP_URL: "https://vendetta-absolve-emphasize.ngrok-free.dev",
+//   MERCHANT_APP_URL: "http://192.168.0.185:3001"
+// };
 window.__APP_CONFIG__ = {
   BACKEND_URL: "",
   PPB_APP_URL: "https://vendetta-absolve-emphasize.ngrok-free.dev",
-  MERCHANT_APP_URL: "http://192.168.0.185:3001"
+  MERCHANT_APP_URL: "http://172.20.10.2:3001"
 };

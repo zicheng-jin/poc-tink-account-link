@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
@@ -24,31 +25,43 @@ const ORDER_TOTAL = ORDER_ITEMS.reduce((sum, item) => sum + item.price * item.qt
 // The custom scheme that iOS will intercept and hand back to this app
 const REDIRECT_SCHEME = 'merchantcheckout';
 
+type BrowserMode = 'in-app' | 'safari' | 'chrome';
+
+const BROWSER_OPTIONS: { id: BrowserMode; label: string; description: string }[] = [
+  { id: 'in-app', label: 'In-App Browser', description: 'SFSafariViewController' },
+  { id: 'safari', label: 'Safari', description: 'External browser' },
+  { id: 'chrome', label: 'Chrome', description: 'External browser' },
+];
+
 export default function CheckoutScreen() {
   const [orderId] = useState(() => `ORD-${Date.now()}`);
   const [loading, setLoading] = useState(false);
+  const [browserMode, setBrowserMode] = useState<BrowserMode>('in-app');
   const router = useRouter();
 
   async function handlePayByBank() {
     setLoading(true);
     try {
-      // returnUrl uses the custom scheme — iOS intercepts this and closes SFSafariViewController
       const returnUrl = `${REDIRECT_SCHEME}://payment/success?orderId=${orderId}`;
       const ppbUrl = `${config.ppbAppUrl}/?mode=redirect&returnUrl=${encodeURIComponent(returnUrl)}`;
 
-      // openAuthSessionAsync is designed for OAuth/redirect flows — it watches for the
-      // redirectUrl scheme and hands control back to the app when Tink redirects there
-      const result = await WebBrowser.openAuthSessionAsync(ppbUrl, `${REDIRECT_SCHEME}://`);
-
-      if (result.type === 'success') {
-        // result.url = the full deep link, e.g.
-        // merchantcheckout://payment/success?orderId=ORD-123&status=success&payment_request_id=abc
-        // Strip the scheme+host to get an Expo Router path: /payment/success?...
-        const path = result.url.replace(`${REDIRECT_SCHEME}:/`, '');
-        router.push(path as never);
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        // User closed the browser manually — do nothing, stay on checkout
-        console.log('[handlePayByBank] Browser dismissed by user');
+      if (browserMode === 'in-app') {
+        const result = await WebBrowser.openAuthSessionAsync(ppbUrl, `${REDIRECT_SCHEME}://`);
+        if (result.type === 'success') {
+          const path = result.url.replace(`${REDIRECT_SCHEME}:/`, '');
+          router.push(path as never);
+        } else if (result.type === 'cancel' || result.type === 'dismiss') {
+          console.log('[handlePayByBank] Browser dismissed by user');
+        }
+      } else if (browserMode === 'safari') {
+        await Linking.openURL(ppbUrl);
+      } else if (browserMode === 'chrome') {
+        const chromeUrl = ppbUrl.replace(/^https:\/\//, 'googlechromes://').replace(/^http:\/\//, 'googlechrome://');
+        try {
+          await Linking.openURL(chromeUrl);
+        } catch {
+          Alert.alert('Chrome not installed', 'Please install Google Chrome and try again.');
+        }
       }
     } catch (err) {
       console.error('[handlePayByBank] Error:', err);
@@ -80,6 +93,26 @@ export default function CheckoutScreen() {
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalAmount}>€{ORDER_TOTAL.toFixed(2)}</Text>
         </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Open payment in</Text>
+      <View style={styles.browserPicker}>
+        {BROWSER_OPTIONS.map((opt) => (
+          <TouchableOpacity
+            key={opt.id}
+            style={[styles.browserOption, browserMode === opt.id && styles.browserOptionSelected]}
+            onPress={() => setBrowserMode(opt.id)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.browserDot, browserMode === opt.id && styles.browserDotSelected]} />
+            <View>
+              <Text style={[styles.browserLabel, browserMode === opt.id && styles.browserLabelSelected]}>
+                {opt.label}
+              </Text>
+              <Text style={styles.browserDesc}>{opt.description}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <TouchableOpacity
@@ -139,4 +172,33 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   hint: { fontSize: 13, color: '#64748b', textAlign: 'center', lineHeight: 20 },
+  browserPicker: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  browserOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  browserOptionSelected: { backgroundColor: '#eff6ff' },
+  browserDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+  },
+  browserDotSelected: { borderColor: '#1d4ed8', backgroundColor: '#1d4ed8' },
+  browserLabel: { fontSize: 15, fontWeight: '600', color: '#334155' },
+  browserLabelSelected: { color: '#1d4ed8' },
+  browserDesc: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
 });

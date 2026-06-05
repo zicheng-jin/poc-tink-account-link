@@ -85,6 +85,31 @@ export async function getLinkUrl(
 }
 
 // ---------------------------------------------------------------------------
+// POST /api/tink/session — save returnUrl + mode keyed by paymentRequestId
+// GET  /api/tink/session/:id — retrieve them (used by Callback in cross-browser flows)
+// ---------------------------------------------------------------------------
+export async function saveSession(
+  paymentRequestId: string,
+  returnUrl: string,
+  mode: string
+): Promise<void> {
+  await api.post('/api/tink/session', { paymentRequestId, returnUrl, mode });
+}
+
+export async function getSession(
+  paymentRequestId: string
+): Promise<{ returnUrl: string; mode: string } | null> {
+  try {
+    const response = await api.get<{ returnUrl: string; mode: string }>(
+      `/api/tink/session/${paymentRequestId}`
+    );
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/verify-payment
 // Verifies a completed Tink payment request (currently mocked).
 // ---------------------------------------------------------------------------
